@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { ShoppingCart, Minus, Plus, Check } from "lucide-react";
+import { ShoppingCart, Minus, Plus, Eye } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import proteinPacket from "@/assets/protein-packet.jpg";
 import { toast } from "sonner";
+import { useCart } from "@/contexts/CartContext";
 
 const FLAVOURS = [
   { name: "Chocolate", color: "bg-amber-900" },
@@ -27,15 +29,27 @@ const ProductSection = () => {
   const [qty, setQty] = useState(1);
   const [flavour, setFlavour] = useState("Chocolate");
   const [billing, setBilling] = useState("once");
+  const [justAdded, setJustAdded] = useState(false);
+  const { addItem, itemCount } = useCart();
+  const navigate = useNavigate();
 
   const selectedBilling = BILLING_OPTIONS.find((b) => b.id === billing)!;
-  const discountedPrice = PRICE * (1 - selectedBilling.discount / 100);
-  const total = Math.round(qty * discountedPrice);
+  const discountedPrice = Math.round(PRICE * (1 - selectedBilling.discount / 100));
+  const total = qty * discountedPrice;
 
   const handleAddToCart = () => {
+    addItem({
+      id: `${flavour}-${billing}`,
+      flavour,
+      billing,
+      billingLabel: selectedBilling.label,
+      qty,
+      unitPrice: discountedPrice,
+    });
     toast.success(`${qty} ${flavour} packet${qty > 1 ? "s" : ""} added to cart!`, {
       description: `${selectedBilling.label} • Total: ₹${total}`,
     });
+    setJustAdded(true);
   };
 
   return (
@@ -87,7 +101,7 @@ const ProductSection = () => {
                 {FLAVOURS.map((f) => (
                   <button
                     key={f.name}
-                    onClick={() => setFlavour(f.name)}
+                    onClick={() => { setFlavour(f.name); setJustAdded(false); }}
                     className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition-all text-sm font-body ${
                       flavour === f.name
                         ? "border-primary bg-secondary text-foreground"
@@ -110,7 +124,7 @@ const ProductSection = () => {
                 {BILLING_OPTIONS.map((opt) => (
                   <button
                     key={opt.id}
-                    onClick={() => setBilling(opt.id)}
+                    onClick={() => { setBilling(opt.id); setJustAdded(false); }}
                     className={`relative rounded-lg border p-3 text-center transition-all font-body ${
                       billing === opt.id
                         ? "border-primary bg-secondary"
@@ -140,19 +154,15 @@ const ProductSection = () => {
             <div className="mt-6 grid grid-cols-3 gap-4">
               {[
                 { label: "Protein", value: "24g" },
-                { label: "Per Packet", value: `₹${Math.round(discountedPrice)}` },
+                { label: "Per Packet", value: `₹${discountedPrice}` },
                 { label: "Sugar", value: "0g" },
               ].map((stat) => (
                 <div
                   key={stat.label}
                   className="bg-secondary rounded-lg p-4 text-center border border-border"
                 >
-                  <p className="text-2xl font-heading font-bold text-primary">
-                    {stat.value}
-                  </p>
-                  <p className="text-xs text-muted-foreground uppercase tracking-wider mt-1">
-                    {stat.label}
-                  </p>
+                  <p className="text-2xl font-heading font-bold text-primary">{stat.value}</p>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider mt-1">{stat.label}</p>
                 </div>
               ))}
             </div>
@@ -166,9 +176,7 @@ const ProductSection = () => {
                 >
                   <Minus size={18} />
                 </button>
-                <span className="px-4 text-lg font-heading font-semibold text-foreground">
-                  {qty}
-                </span>
+                <span className="px-4 text-lg font-heading font-semibold text-foreground">{qty}</span>
                 <button
                   onClick={() => setQty(qty + 1)}
                   className="p-3 text-muted-foreground hover:text-foreground transition-colors"
@@ -176,23 +184,33 @@ const ProductSection = () => {
                   <Plus size={18} />
                 </button>
               </div>
-              <span className="text-2xl font-heading font-bold text-foreground">
-                ₹{total}
-              </span>
+              <span className="text-2xl font-heading font-bold text-foreground">₹{total}</span>
               {selectedBilling.discount > 0 && (
-                <span className="text-sm text-muted-foreground line-through">
-                  ₹{qty * PRICE}
-                </span>
+                <span className="text-sm text-muted-foreground line-through">₹{qty * PRICE}</span>
               )}
             </div>
 
-            <button
-              onClick={handleAddToCart}
-              className="mt-6 w-full bg-primary text-primary-foreground font-heading text-lg uppercase tracking-widest py-4 flex items-center justify-center gap-3 hover:bg-gold-glow transition-all duration-300 animate-pulse-glow rounded-lg"
-            >
-              <ShoppingCart size={20} />
-              Add to Cart
-            </button>
+            {/* Add to Cart / View Cart */}
+            <div className="mt-6 flex gap-3">
+              <button
+                onClick={handleAddToCart}
+                className="flex-1 bg-primary text-primary-foreground font-heading text-lg uppercase tracking-widest py-4 flex items-center justify-center gap-3 hover:bg-gold-glow transition-all duration-300 rounded-lg"
+              >
+                <ShoppingCart size={20} />
+                Add to Cart
+              </button>
+              {(justAdded || itemCount > 0) && (
+                <motion.button
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  onClick={() => navigate("/cart")}
+                  className="bg-secondary border border-primary text-primary font-heading text-lg uppercase tracking-widest px-6 py-4 flex items-center justify-center gap-2 hover:bg-primary hover:text-primary-foreground transition-all duration-300 rounded-lg"
+                >
+                  <Eye size={20} />
+                  View Cart{itemCount > 0 && ` (${itemCount})`}
+                </motion.button>
+              )}
+            </div>
           </motion.div>
         </div>
       </div>
